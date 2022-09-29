@@ -1,0 +1,154 @@
+---
+title: "Assignment 2"
+author: "Sean Bradford"
+output:
+  html_document:
+    df_print: paged
+---
+
+Question 1: Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 
+1, Education_3 = 0, Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1, and 
+Credit Card = 1. Perform a k-NN classification with all predictors except ID and ZIP code 
+using k = 1. Remember to transform categorical predictors with more than two categories 
+into dummy variables first. Specify the success class as 1 (loan acceptance), and use the 
+default cutoff value of 0.5. How would this customer be classified?
+
+```{r}
+rm(list=ls())
+library(FNN)
+library(caret)
+library(ISLR)
+library(psych)
+```
+
+```{r}
+bank_data=(read.csv("C:\\Users\\Sean\\OneDrive\\Desktop\\Grad School\\Machine Learning\\UniversalBank.csv"))
+
+# Transformed Education to a factor for dummy coding
+bank_data$Education=as.factor(bank_data$Education)
+
+# Created subset and removed ID & Zip Code
+bank_subset=subset(bank_data, select=-c(ID, ZIP.Code ))
+
+# dummyVars caused issues with new.df.norm (line 52)
+# Researched alternatives and found dummy.code in psych package
+# Created dummy variables for Education
+bank_dumm = as.data.frame(dummy.code(bank_subset$Education))
+names(bank_dumm) = c("Education_1", "Education_2","Education_3")
+
+# Created subset without Education then combined data frames under bank_dumm1
+no_ed = subset(bank_subset, select=-c(Education))
+bank_dumm1=cbind(no_ed,bank_dumm)
+
+# Transformed Personal.Loan & CCAvg for future knn implementation
+bank_dumm1$Personal.Loan = as.factor(bank_dumm1$Personal.Loan)
+bank_dumm1$CCAvg = as.integer(bank_dumm1$CCAvg)
+
+# Partitioned data - 60% training and 40% validation
+set.seed(111)
+train.index = sample(row.names(bank_dumm1), 0.6*dim(bank_dumm1)[1])
+test.index = setdiff(row.names(bank_dumm1), train.index) 
+train.df = bank_dumm1[train.index, ]
+valid.df = bank_dumm1[test.index, ]
+
+# Created data frame for customer test
+new.df = data.frame(Age = as.integer(40), Experience = as.integer(10), Income = as.integer(84), Family = as.integer(2), CCAvg = as.integer(2), Mortgage = as.integer(0), Securities.Account = as.integer(0), CD.Account = as.integer(0), Online = as.integer(1), CreditCard = as.integer(1),  Education_1 = as.integer(0), Education_2 = as.integer(1), Education_3 = as.integer(0))
+
+# Normalized data (z-score)
+norm.values = preProcess(train.df[, -7], method=c("center", "scale"))
+train.df[, -7] = predict(norm.values, train.df[, -7])
+valid.df[, -7] = predict(norm.values, valid.df[, -7])
+new.df.norm = predict(norm.values, new.df)
+
+# Performed k-NN classification
+nn = knn(train = train.df[,-7],test = new.df.norm, cl = train.df[,7], k=1)
+nn
+```
+Algorithm predicted customer classification of 0
+
+Question 2: What is a choice of k that balances between overfitting and ignoring the predictor 
+information? 
+```{r}
+# Initialized a data frame with columns k and accuracy
+accuracy.df = data.frame(k = seq(1, 14, 1), accuracy = rep(0, 14))
+
+# Computed k-NN for different k's applied to validation data
+for(i in 1:14) {
+  nn2 = knn(train = train.df[,-7],test = valid.df[,-7], cl = train.df[,7], k=i)
+  accuracy.df[i, 2] = confusionMatrix(nn2, valid.df[,7])$overall[1]
+}
+accuracy.df
+```
+K=3 is shown to be the most accurate K value
+
+Question 3: Show the confusion matrix for the validation data that results from using the best k. 
+```{r}
+nn3 = knn(train = train.df[,-7],test = valid.df[,-7], cl = train.df[,7], k=3)
+confusionMatrix(nn3,valid.df[,7])
+```
+
+
+Question 4: Consider the following customer: Age = 40, Experience = 10, Income = 84, 
+Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, 
+Mortgage = 0, Securities Account = 0, CD Account = 0, Online = 1 and Credit 
+Card = 1. Classify the customer using the best k. 
+```{r}
+customer_data= data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education_1 = 0, Education_2 = 1, Education_3 = 0, Mortgage = 0, Securities.Account = 0, CD.Account = 0, Online = 1, CreditCard = 1)
+nn4 = knn(train = train.df[,-7],test = customer_data, cl = train.df[,7], k=3)
+nn4
+```
+Algorithm predicted customer classification of 1 with best k (k=3)
+
+Question 5: Repartition the data, this time into training, validation, and test sets (50% : 30% : 20%). Apply 
+the k-NN method with the k chosen above. Compare the confusion matrix of the test set 
+with that of the training and validation sets. Comment on the differences and their reason. 
+```{r}
+# Followed same sequence as question 1
+bank_data$Education=as.factor(bank_data$Education)
+
+bank_subset=subset(bank_data, select=-c(ID, ZIP.Code ))
+
+bank_dumm = as.data.frame(dummy.code(bank_subset$Education))
+names(bank_dumm) = c("Education_1", "Education_2","Education_3")
+no_ed = subset(bank_subset, select=-c(Education))
+bank_dumm1=cbind(no_ed,bank_dumm)
+
+bank_dumm1$Personal.Loan = as.factor(bank_dumm1$Personal.Loan)
+bank_dumm1$CCAvg = as.integer(bank_dumm1$CCAvg)
+
+# Partitioned data: 50% training, 30% validation, 20% testing
+set.seed(111)
+train.index = sample(rownames(bank_dumm1), 0.5*dim(bank_dumm1)[1])
+set.seed(111)
+valid.index = sample(setdiff(rownames(bank_dumm1),train.index), 0.3*dim(bank_dumm1)[1])
+test.index = setdiff(rownames(bank_dumm1), union(train.index, valid.index))
+
+# Created data frames for partitioned data
+train.df = bank_dumm1[train.index, ]
+valid.df = bank_dumm1[valid.index, ]
+test.df = bank_dumm1[test.index, ]
+
+# Normalized data
+norm.values = preProcess(train.df[, -7], method=c("center", "scale"))
+train.df[, -7] = predict(norm.values, train.df[, -7])
+valid.df[, -7] = predict(norm.values, valid.df[, -7])
+test.df[,-7] = predict(norm.values, test.df[,-7])
+
+# Created test, valid, and train variables for each k-NN test
+test.knn = knn(train = train.df[,-7],test = test.df[,-7], cl = train.df[,7], k=3)
+valid.knn = knn(train = train.df[,-7],test = valid.df[,-7], cl = train.df[,7], k=3)
+train.knn = knn(train = train.df[,-7],test = train.df[,-7], cl = train.df[,7], k=3)
+
+confusionMatrix(test.knn, test.df[,7])
+
+```
+
+```{r}
+confusionMatrix(valid.knn, valid.df[,7])
+```
+
+```{r}
+confusionMatrix(train.knn, train.df[,7])
+```
+
+The test set was the least accurate at .962, the validation set had a better accuracy at .9653, and the training set had the best accuracy at .9732. These differences exist because all three models are trained with the training data. Since the training model was tested the training data, it was the best fit. It also contained the most data (50%). The validation model tested more data (30%) than the testing model (20%) which explains the accuracy difference between them.
