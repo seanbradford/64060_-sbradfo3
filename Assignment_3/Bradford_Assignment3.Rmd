@@ -1,0 +1,152 @@
+---
+title: "Assignment 3"
+author: "Sean Bradford"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+```{r}
+rm(list=ls())
+library(caret)
+library(ISLR)
+library(e1071)
+library(reshape)
+library(reshape2)
+```
+
+A. Create a pivot table for the training data with Online as a column variable, CC as a row variable, and Loan as a secondary row variable. The values inside the table should convey the count.
+```{r}
+bank = read.csv("C:\\Users\\Sean\\OneDrive\\Desktop\\Grad School\\Machine Learning\\Module 5 - Naive Bayes Classifier\\UniversalBank(1).csv")
+bank$Personal.Loan = as.factor(bank$Personal.Loan)
+bank$Online = as.factor(bank$Online)
+bank$CreditCard = as.factor(bank$CreditCard)
+set.seed(111)
+
+train.index=createDataPartition(bank$Personal.Loan,p=0.6,list=FALSE)
+
+train.df = bank[train.index, ]
+test.df = bank[-train.index, ]
+train = bank[train.index, ]
+test = bank[train.index,]
+```
+
+```{r}
+melted.bank = melt(train,id=c("CreditCard","Personal.Loan"),variable= "Online")
+recast.bank =dcast(melted.bank,CreditCard+Personal.Loan~Online)
+recast.bank[,c(1:2,14)]
+```
+
+B. Consider the task of classifying a customer who owns a bank credit card and is actively using online banking services. Looking at the pivot table, what is the probability that this customer will accept the loan offer? [This is the probability of loan acceptance (Loan = 1) conditional on having a bank credit card (CC = 1) and being an active user of online banking services (Online = 1)].
+```{r}
+Online_sum=1918+200+794+88
+Online_sum
+```
+```{r}
+CustomerB=88/3000
+CustomerB
+```
+The probability of a customer (who owns a bank credit card and is actively using online services) to accept the loan offer is 2.9%.
+
+
+C. Create two separate pivot tables for the training data. One will have Loan (rows) as a function of Online (columns) and the other will have Loan (rows) as a function of CC.
+```{r}
+melt.bank1 = melt(train,id=c("Personal.Loan"),variable = "Online")
+melt.bank2 = melt(train,id=c("CreditCard"),variable = "Online")
+
+recast.bank1=dcast(melt.bank1,Personal.Loan~Online)
+recast.bank2=dcast(melt.bank2,CreditCard~Online)
+Loanline=recast.bank1[,c(1,13)]
+LoanCC = recast.bank2[,c(1,14)]
+```
+
+```{r}
+Loanline
+```
+
+```{r}
+LoanCC
+```
+
+D. Compute the following quantities [P (A | B) means “the probability of A given B”]:
+P (CC = 1 | Loan = 1) (the proportion of credit card holders among the loan acceptors)
+P(Online=1|Loan=1)
+P (Loan = 1) (the proportion of loan acceptors)
+P(CC=1|Loan=0)
+P(Online=1|Loan=0)
+P(Loan=0)
+```{r}
+#i & iv
+table(train[,c(14,10)])
+```
+```{r}
+Di=87/(87+205)
+Di
+```
+```{r}
+Div=812/(812+1896)
+Div
+```
+
+
+```{r}
+#ii & v
+table(train[,c(13,10)])
+```
+```{r}
+Dii=180/(180+112)
+Dii
+```
+```{r}
+Dv=1596/(1596+1112)
+Dv
+```
+
+
+```{r}
+#iii & vi
+table(train[,c(10)])
+```
+```{r}
+Diii=292/(292+2708)
+Diii
+```
+
+```{r}
+Dvi=2708/(2708+292)
+Dvi
+```
+i.    29.8%
+ii.   61.6%
+iii.  9.7%
+iv.   30.0%
+v.    58.9%
+vi.   90.3%
+
+
+E. Use the quantities computed above to compute the naive Ba1 probability P(Loan = 1 | CC = 1, Online = 1).
+```{r}
+De=(Di*Dii*Diii)/((Di*Dii*Diii)+(Div*Dv*Dvi))
+De
+```
+Probability is 10.1%
+
+
+F. Compare this value with the one obtained from the pivot table in (b). Which is a more accurate estimate?
+
+- The 10.1% from the naive Ba1 probability is more accurate because the naive bayes calculation (unlike the method from question B) does not rely on all predictor values being identical.
+
+
+G. Which of the entries in this table are needed for computing P (Loan = 1 | CC = 1, Online = 1)? In R, run naive Bayes on the data. Examine the model output on training data, and find the entry that corresponds to P (Loan = 1 | CC = 1, Online = 1). Compare this to the number you obtained in (e).
+```{r}
+nb.train = train.df[,c(10,13:14)]
+nb.test = test.df[,c(10,13:14)]
+nb = naiveBayes(Personal.Loan~.,data=nb.train)
+nb
+```
+```{r}
+Dg=(0.096*0.6145833*0.3055556)/((0.096*0.6145833*0.3055556)+(0.904*0.5903392*0.2927729))
+Dg
+```
+Probability is 10.3%.
+
+The probability obtained in G. is almost the same as the probability obtained in E. There is a slight 0.2% difference between the values.
