@@ -1,0 +1,166 @@
+---
+title: "ML Assignment 4"
+author: "Sean Bradford"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+rm(list=ls())
+
+library(tidyverse)
+library(ISLR)
+library(factoextra)
+library(flexclust)
+
+pharm=read.csv('C:\\Users\\Sean\\OneDrive\\Desktop\\Grad School\\Machine Learning\\Module 6 - K-mean Clustering Algorithm\\Pharmaceuticals.csv')
+head(pharm)
+```
+
+A. Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in 
+conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) 
+used, the number of clusters formed, and so on.
+
+```{r}
+set.seed(111)
+# Retain only quantitative variables from original df
+dfp=data.frame(pharm[,c(3:11)])
+summary(dfp)
+```
+
+```{r}
+# Scaling the data (z-score)
+dfp=scale(dfp)
+dis=get_dist(dfp)
+fviz_dist(dis)
+```
+
+```{r}
+# Determining k 
+fviz_nbclust(dfp,kmeans,"wss")
+```
+
+```{r}
+fviz_nbclust(dfp,kmeans,"silhouette")
+```
+
+Both charts indicate that 5 is the ideal number of clusters. 
+
+```{r}
+# k means clustering (Euclidean distance)
+k.5=kmeans(dfp,centers = 5, nstart=25)
+k.5
+k.5$centers
+
+```
+
+```{r}
+k.5$size
+```
+
+```{r}
+k.5$cluster[6]
+```
+
+```{r}
+
+
+fviz_cluster(k.5,data=dfp)
+```
+
+
+```{r}
+# k means clustering using Manhattan distance for comparison
+set.seed(111)
+kc.5=kcca(dfp, k=5, kccaFamily("kmedians"))
+kc.5
+```
+
+```{r}
+clusters_index=predict(kc.5)
+dist(kc.5@centers)
+image(kc.5)
+points(dfp,col=clusters_index,pch=19)
+```
+
+B. Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+```{r}
+# Centroids for Euclidean distance model
+k.5$centers
+```
+
+```{r}
+# Create profile plot of cluster centroids
+
+dfp1=data.frame(pharm[,c(3:11)])
+
+plot(c(0),xaxt='n',ylab="", type="l",
+     ylim=c(min(k.5$centers),max(k.5$centers)),xlim=c(0,9))
+axis(1,at=seq(1:9),labels = names(dfp1),cex.axis=0.55,las=3)
+
+for (i in c(1:5))
+  lines(k.5$centers[i,],lty=i,lwd=2,col= if(i %in% 1) {
+    col="blue"
+  } else if(i %in% 2) {
+    col="green"
+  } else if(i %in% 3) {
+    col="purple"
+  } else if(i %in% 4) {
+    col="orange"
+  } else {
+    col="red"
+  }
+  )
+
+text(x=1,y=k.5$centers[,1],labels=paste("Cluster",c(1:5)))
+```
+Characteristics of each cluster:
+
+Cluster 1 (blue):   Lower Beta; Higher Net Proft Margin
+Cluster 2 (green):  Lower Market Cap and ROA; Higher Beta and Leverage
+Cluster 3 (purple): Higher P/E Ratio; Lower ROE and Net Profit Margin
+Cluster 4 (orange): Higher Market Cap, ROE, ROA & Asset Turnover; Lower leverage
+Cluster 5 (red):    Higher Revenue Growth; Lower Asset Turnover
+
+
+C. Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in 
+forming the clusters)
+
+```{r}
+# Seperate clusters to analyze unused variables
+c1=pharm[c(1,4,7,10,21,16,19,3),c(12:14)]
+c2=pharm[c(12,8,6),c(12:14)]
+c3=pharm[c(2,18),c(12:14)]
+c4=pharm[c(11,17,13,15),c(12:14)]
+c5=pharm[c(5,20,14,9),c(12:14)]
+```
+
+```{r}
+c1
+c2
+c3
+c4
+c5
+```
+For Median Recommendation variable:
+
+Cluster 1: Mainly Hold 
+Cluster 2: Mainly Hold 
+Cluster 3: 1 mod buy and 1 hold
+Cluster 4: 2 mod buy and 2 hold
+Cluster 5: 2 mod buy and 2 mod sell
+
+Clusters 1 and 2 have similar Revenue Growth and P/E Ratio. There appears to be a pattern between those two factors and receiving a Hold recommendation.
+
+Clusters 3-5 are top 3 in Revenue Growth and half the recommendations for each cluster are Moderate Buy. Pattern showing that pharm companies with higher revenue growth are more likely to receive buy recommendations.
+
+
+D. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+Cluster 1: High Net Profit Margin
+Cluster 2: High Beta & Leverage; Low ROA & Market Cap
+Cluster 3: Very High P/E Ratio; Very low Net Profit Margin
+Cluster 4: High ROE,ROA,Asset Turnover; Low Leverage
+Cluster 5: High Revenue Growth; Very Low Asset Turnover
